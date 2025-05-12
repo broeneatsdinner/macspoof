@@ -2,6 +2,7 @@
 
 # Some usage notes:
 # ./macspoof.sh spoof - Spoof to a new randomized MAC address
+# ./macspoof.sh spoof --dry-run - Show the MAC that would be used, but don't apply it
 # ./macspoof.sh unspoof - Restore original MAC address
 # ./macspoof.sh history - View logs of macspoof.sh (this program)
 
@@ -60,18 +61,42 @@ spoof_mac() {
 		echo "$REAL_MAC" > "$MAC_STORE"
 		echo "Stored original MAC: $REAL_MAC"
 	else
-		echo "Original MAC already stored at $MAC_STORE"
+		REAL_MAC=$(cat "$MAC_STORE")
 	fi
 
 	NEW_MAC=$(generate_smart_mac)
-	echo "Spoofing MAC to: $NEW_MAC"
 
-	sudo ifconfig "$INTERFACE" down
-	sudo ifconfig "$INTERFACE" ether "$NEW_MAC"
-	sudo ifconfig "$INTERFACE" up
+	if [[ "$2" == "--dry-run" ]]; then
+		echo "Would spoof MAC to: $NEW_MAC"
+		return
+	fi
 
-	log_action "spoofed" "$NEW_MAC"
-	echo "✅ MAC address spoofed to $NEW_MAC"
+	CURRENT_MAC=$(get_current_mac)
+
+	if [[ "$CURRENT_MAC" == "$NEW_MAC" ]]; then
+		echo "⚠️  Already spoofed to this MAC: $NEW_MAC"
+		return
+	fi
+
+	if [[ "$CURRENT_MAC" == "$REAL_MAC" ]]; then
+		echo "Spoofing MAC to: $NEW_MAC"
+
+		sudo ifconfig "$INTERFACE" down
+		sudo ifconfig "$INTERFACE" ether "$NEW_MAC"
+		sudo ifconfig "$INTERFACE" up
+
+		log_action "spoofed" "$NEW_MAC"
+		echo "✅ MAC address spoofed to $NEW_MAC"
+	else
+		echo "Detected non-original MAC ($CURRENT_MAC). Spoofing again to a fresh one: $NEW_MAC"
+
+		sudo ifconfig "$INTERFACE" down
+		sudo ifconfig "$INTERFACE" ether "$NEW_MAC"
+		sudo ifconfig "$INTERFACE" up
+
+		log_action "respoofed" "$NEW_MAC"
+		echo "🔁 MAC address re-spoofed to $NEW_MAC"
+	fi
 }
 
 unspoof_mac() {
@@ -115,7 +140,7 @@ case "$1" in
 		fi
 		;;
 	*)
-		echo "Usage: $0 [spoof|unspoof|history]"
+		echo "Usage: $0 [spoof [--dry-run]|unspoof|history]"
 		exit 1
 		;;
 esac
