@@ -28,6 +28,26 @@ generate_random_mac() {
 	openssl rand -hex 6 | sed 's/\(..\)/\1:/g' | cut -c1-17
 }
 
+# generate_smart_mac() attempts to create a MAC address that looks like
+# it belongs to your computer's actual vendor. The reason for doing this
+# is to try and trick enterprise-grade networks (like airports or
+# airlines) that perform OUI validation (validating a given MAC address
+# against a connecting-client's hardware vendor)
+generate_smart_mac() {
+	local current_mac
+	current_mac=$(get_current_mac)
+
+	if [[ "$current_mac" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]]; then
+		local oui suffix
+		oui=$(echo "$current_mac" | cut -d':' -f1-3)
+		suffix=$(openssl rand -hex 3 | sed 's/\\(..\\)/\\1:/g' | cut -c1-8)
+		echo "$oui:$suffix"
+	else
+		# Fall back if invalid or undetectable
+		generate_random_mac
+	fi
+}
+
 log_action() {
 	local action="$1"
 	local mac="$2"
@@ -43,7 +63,7 @@ spoof_mac() {
 		echo "Original MAC already stored at $MAC_STORE"
 	fi
 
-	NEW_MAC=$(generate_random_mac)
+	NEW_MAC=$(generate_smart_mac)
 	echo "Spoofing MAC to: $NEW_MAC"
 
 	sudo ifconfig "$INTERFACE" down
