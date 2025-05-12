@@ -1,8 +1,6 @@
 # macspoof
-On-Demand MAC Address Spoofing with Safe Restore and Logging
 
-
-# 🥷 macspoof
+On-Demand MAC Address Spoofing with Safe Restore and Logging  
 
 **macspoof** is a lightweight macOS command-line utility for safely and temporarily spoofing your MAC address on public networks. It includes simple commands to spoof, unspoof (restore), and view a log of your activity --- helping improve privacy, anonymity, and network hygiene.
 
